@@ -706,19 +706,34 @@ function renderPreview(){
    </div>
    <div class="restaurant-line"><div class="public-avatar">${r.avatar?`<img src="${escapeHtml(r.avatar)}" alt="">`:`<span class="avatar-placeholder">${icon('image',20)}</span>`}</div><div class="restaurant-copy"><h1>${escapeHtml(r.name)}</h1><div class="restaurant-meta"><span class="open-chip"><i></i>${escapeHtml(r.status)}</span>${hoursDisclosure()}</div></div></div>
    <label class="public-search">${icon('search',17)}<input id="public-search-input" value="${escapeHtml(ui.menuSearch)}" placeholder="Search the menu" autocomplete="off"><span class="lang-code lang-indicator" aria-label="Current language ${escapeHtml(state.preview.language)}">${escapeHtml(code)}</span></label></header>
-  ${p&&p.item.promotion.intensity==='strong'&&!state.preview.strongDismissed?`<button class="strong-promo-card reveal-item" data-action="scroll-item" data-id="${p.item.id}"><img src="${p.item.image}" alt=""><div><b>${escapeHtml(p.item.promotion.label)}</b><strong>${escapeHtml(p.item.name)}</strong><span>${escapeHtml(itemIngredients(p.item))}</span></div>${icon('chevron',18)}</button>`:''}
-  <div class="category-sticky" id="category-sticky"><nav class="category-strip" id="category-strip">${state.categories.map((c,idx)=>`<button class="category-chip ${idx===0?'active':''} ${state.categoryTakeover.active&&state.categoryTakeover.categoryId===c.id?'takeover':''}" data-action="jump-category" data-id="${c.id}">${escapeHtml(c.name)}</button>`).join('')}</nav></div>
-  <main class="menu-sections">${state.categories.map((c,ci)=>renderPublicCategory(c,ci)).join('')}</main>
- </div></div>`;
+   ${p&&p.item.promotion.intensity==='strong'&&!state.preview.strongDismissed?`<button class="strong-promo-card reveal-item" data-action="scroll-item" data-id="${p.item.id}"><img src="${p.item.image}" alt=""><div><b>${escapeHtml(p.item.promotion.label)}</b><strong>${escapeHtml(tItem(p.item).name)}</strong><span>${escapeHtml(tItem(p.item).ingredients)}</span></div>${icon('chevron',18)}</button>`:''}
+   <div class="diet-row">${DIET_FILTERS.map(([id,name])=>`<button class="filter-chip ${(ui.dietFilter||'all')===id?'active':''}" data-action="diet-filter" data-diet="${id}">${name}</button>`).join('')}<button class="filter-chip ghost" data-action="allergen-sheet">${icon('info',13)} Allergens</button></div>
+   <div class="category-sticky" id="category-sticky"><nav class="category-strip" id="category-strip">${visibleCategories().map((c,idx)=>`<button class="category-chip ${idx===0?'active':''} ${state.categoryTakeover.active&&state.categoryTakeover.categoryId===c.id?'takeover':''}" data-action="jump-category" data-id="${c.id}">${escapeHtml(tCategory(c))}</button>`).join('')}</nav></div>
+   <main class="menu-sections">${visibleCategories().length?visibleCategories().map((c,ci)=>renderPublicCategory(c,ci)).join(''):`<div class="card empty" style="margin:16px">No dishes match that filter.</div>`}</main>
+  </div></div>`;
 }
+function dietMatches(i){
+ const f=ui.dietFilter||'all';
+ if(f==='all') return true;
+ return itemDiets(i).includes(f);
+}
+function visibleItemsOf(c){ return c.items.filter(i=>i.status!=='hidden'&&(!state.hideSoldOut||i.status!=='soldout')&&dietMatches(i)); }
+function visibleCategories(){ return state.categories.filter(c=>visibleItemsOf(c).length); }
 
 function renderPublicCategory(c,ci){
- const visible=c.items.filter(i=>i.status!=='hidden');
- return `<section class="menu-category ${state.categoryTakeover.active&&state.categoryTakeover.categoryId===c.id?'takeover':''}" id="cat-${c.id}" data-category="${c.id}"><div class="menu-category-head"><h2>${escapeHtml(c.name)}</h2><span>${visible.length} ${visible.length===1?'item':'items'}</span></div><div class="product-list">${visible.map((i,ii)=>renderPublicItem(i,c,ci*4+ii)).join('')}</div></section>`;
+ const visible=visibleItemsOf(c);
+ return `<section class="menu-category ${state.categoryTakeover.active&&state.categoryTakeover.categoryId===c.id?'takeover':''}" id="cat-${c.id}" data-category="${c.id}"><div class="menu-category-head"><h2>${escapeHtml(tCategory(c))}</h2><span>${visible.length} ${visible.length===1?'item':'items'}</span></div><div class="product-list">${visible.map((i,ii)=>renderPublicItem(i,c,ci*4+ii)).join('')}</div></section>`;
+}
+function itemBadges(i){
+ const al=itemAllergens(i), di=itemDiets(i), sp=Number(i.spice)||0;
+ const diet=di.map(d=>`<span class="diet-tag">${escapeHtml((DIETS.find(x=>x[0]===d)||[,d])[1])}</span>`).join('');
+ const allerg=al.length?`<span class="allergen-bubbles">${al.map(code=>`<i title="${escapeHtml((ALLERGENS.find(x=>x[0]===code)||[,code])[1])}">${escapeHtml(code)}</i>`).join('')}</span>`:'';
+ const spice=sp>0?`<span class="spice-tag" aria-label="Spice level ${sp} of 3">${'🌶️'.repeat(sp)}</span>`:'';
+ return (diet||allerg||spice)?`<div class="product-badges">${diet}${spice}${allerg}</div>`:'';
 }
 function renderPublicItem(i,c,idx){
- const p=i.promotion||{}; const promoted=p.active; const ing=itemIngredients(i);
- return `<article class="menu-product reveal-item ${promoted?'is-promoted promo-'+(p.intensity||'subtle')+' promo-style-'+(p.style||state.appearance.promotionStyle):''} ${i.status==='hidden'?'hidden-item':''}" data-item-id="${i.id}" data-search="${escapeHtml((i.name+' '+ing+' '+c.name).toLowerCase())}" style="transition-delay:${Math.min(idx%5*35,140)}ms">${promoted?`<span class="promo-border-label">${escapeHtml(p.label||'Recommended')}</span>`:''}<img class="product-img" src="${i.image}" alt="${escapeHtml(i.name)}" loading="lazy"><div class="product-copy"><h3>${escapeHtml(i.name)}</h3>${ing?`<p>${escapeHtml(ing)}</p>`:''}</div><div class="product-price">${money(i.price)}${(()=>{const cv=conversionsFor(i.price);return cv.length?`<button class="fx-chip" data-action="currency-sheet" data-id="${i.id}" aria-label="Show approximate prices in other currencies">≈ ${escapeHtml(formatCurrency(cv[0].value,cv[0].code))}${icon('down',10)}</button>`:'';})()}</div>${i.status==='soldout'?`<div class="product-status">Sold out</div>`:''}</article>`;
+ const p=i.promotion||{}; const promoted=p.active; const tr=tItem(i); const ing=tr.ingredients;
+ return `<article class="menu-product reveal-item ${promoted?'is-promoted promo-'+(p.intensity||'subtle')+' promo-style-'+(p.style||state.appearance.promotionStyle):''} ${i.status==='hidden'?'hidden-item':''}" data-item-id="${i.id}" data-search="${escapeHtml((tr.name+' '+ing+' '+tCategory(c)).toLowerCase())}" style="transition-delay:${Math.min(idx%5*35,140)}ms">${promoted?`<span class="promo-border-label">${escapeHtml(p.label||'Recommended')}</span>`:''}<img class="product-img" src="${i.image}" alt="${escapeHtml(tr.name)}" loading="lazy"><div class="product-copy"><h3>${escapeHtml(tr.name)}</h3>${ing?`<p>${escapeHtml(ing)}</p>`:''}${itemBadges(i)}</div><div class="product-price">${money(i.price)}${(()=>{const cv=conversionsFor(i.price);return cv.length?`<button class="fx-chip" data-action="currency-sheet" data-id="${i.id}" aria-label="Show approximate prices in other currencies">≈ ${escapeHtml(formatCurrency(cv[0].value,cv[0].code))}${icon('down',10)}</button>`:'';})()}</div>${i.status==='soldout'?`<div class="product-status">Sold out</div>`:''}</article>`;
 }
 
 function renderSuperadmin(){
@@ -740,6 +755,7 @@ function renderOverlays(){
 }
 function renderSheet(){
  if(ui.sheet==='currency') return currencySheet();
+ if(ui.sheet==='allergens') return allergenSheet();
  if(ui.sheet==='language') return languageSheet();
  if(ui.sheet==='info') return infoSheet();
  if(ui.sheet==='role') return roleSheet();
@@ -766,11 +782,22 @@ function languageSheet(){
 }
 function infoSheet(){ const r=state.restaurant; const {list,todayIndex}=weekHours(); return sheetShell(r.name,r.city,`<div class="settings-list"><div class="card"><div class="hours-panel-head" style="padding:12px 14px 4px">${icon('calendar',14)} Opening hours</div><div style="padding:0 14px 12px">${list.map(([day,hrs],idx)=>`<div class="hours-row ${idx===todayIndex?'is-today':''}"><span>${escapeHtml(day)}</span><strong>${escapeHtml(hrs)}</strong></div>`).join('')}</div></div><div class="card settings-row"><div class="settings-icon">${icon('location',18)}</div><div class="settings-copy"><strong>${escapeHtml(r.address)}</strong><span>Tap directions on your live menu</span></div></div><div class="card settings-row"><div class="settings-icon">${icon('phone',18)}</div><div class="settings-copy"><strong>${escapeHtml(r.phone)}</strong><span>Call the restaurant</span></div></div></div>`); }
 function roleSheet(){ return sheetShell('Switch workspace','These are intentionally different products.',`<div class="choice-grid"><button class="choice ${state.role==='restaurant'?'active':''}" data-action="set-role" data-role="restaurant"><strong>Restaurant Admin</strong><span>Menu, promotions, QR, appearance</span></button><button class="choice ${state.role==='super'?'active':''}" data-action="set-role" data-role="super"><strong>Hap Control</strong><span>Restaurants, users, plans, settings</span></button></div>`); }
+function dietaryFields(item){
+ const al=itemAllergens(item), di=itemDiets(item), sp=Number(item&&item.spice)||0;
+ return `<div class="field"><label>Allergens</label><div class="chip-check">${ALLERGENS.map(([code,name])=>`<label class="check-chip"><input type="checkbox" name="allergens" value="${code}" ${al.includes(code)?'checked':''}><span>${code} · ${name}</span></label>`).join('')}</div><small class="field-hint">Shown as bubbles on the public menu — EU guests expect this.</small></div>
+ <div class="field"><label>Dietary</label><div class="chip-check">${DIETS.map(([id,name])=>`<label class="check-chip"><input type="checkbox" name="dietary" value="${id}" ${di.includes(id)?'checked':''}><span>${name}</span></label>`).join('')}</div></div>
+ <div class="field"><label>Spice level</label><select name="spice">${[[0,'Not spicy'],[1,'Mild'],[2,'Spicy'],[3,'Very spicy']].map(([v,n])=>`<option value="${v}" ${sp===v?'selected':''}>${n}</option>`).join('')}</select></div>`;
+}
+function allergenSheet(){
+ return sheetShell('Allergen key','Bubbles under a dish name refer to this list.',
+  `<div class="fx-list">${ALLERGENS.map(([code,name])=>`<div class="fx-row"><div class="fx-row-copy"><strong>${code}</strong><span>${name}</span></div></div>`).join('')}</div>
+  <p class="fx-note">Ask staff about severe allergies — kitchens handle shared equipment.</p>`);
+}
 function editItemSheet(){
  const found=getItem(ui.sheetData?.id); if(!found) return ''; const {item,category}=found;
- return sheetShell('Edit item',category.name,`<form id="edit-item-form" class="form-grid"><input type="hidden" name="id" value="${item.id}"><div class="field"><label>Name</label><input name="name" value="${escapeHtml(item.name)}" required></div><div class="field"><label>Ingredients</label><input name="ingredients" value="${escapeHtml(itemIngredients(item))}" maxlength="90" placeholder="Tomato, mozzarella, basil"><small class="field-hint">Short list shown under the name on the public menu.</small></div><div class="form-row"><div class="field"><label>Price (${currencyOf().primary})</label><input name="price" type="number" min="0" step="0.1" value="${item.price}"></div><div class="field"><label>Category</label><select name="category">${state.categories.map(c=>`<option value="${c.id}" ${c.id===category.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select></div></div><button class="btn primary full" type="button" data-action="save-item-form">Save changes</button><button class="btn danger full" type="button" data-action="delete-item" data-id="${item.id}">${icon('trash',15)} Delete item</button></form>`);
+ return sheetShell('Edit item',category.name,`<form id="edit-item-form" class="form-grid"><input type="hidden" name="id" value="${item.id}"><div class="field"><label>Name</label><input name="name" value="${escapeHtml(item.name)}" required></div><div class="field"><label>Ingredients</label><input name="ingredients" value="${escapeHtml(itemIngredients(item))}" maxlength="90" placeholder="Tomato, mozzarella, basil"><small class="field-hint">Short list shown under the name on the public menu.</small></div><div class="form-row"><div class="field"><label>Price (${currencyOf().primary})</label><input name="price" type="number" min="0" step="0.1" value="${item.price}"></div><div class="field"><label>Category</label><select name="category">${state.categories.map(c=>`<option value="${c.id}" ${c.id===category.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select></div></div>${dietaryFields(item)}<button class="btn primary full" type="button" data-action="save-item-form">Save changes</button><button class="btn danger full" type="button" data-action="delete-item" data-id="${item.id}">${icon('trash',15)} Delete item</button></form>`);
 }
-function addItemSheet(){ const cat=ui.sheetData?.category||state.categories[0].id; return sheetShell('Add menu item','Photo, name, ingredients, price.',`<form id="add-item-form" class="form-grid"><div class="field"><label>Name</label><input name="name" required placeholder="e.g. Wild Mushroom Risotto"></div><div class="field"><label>Ingredients</label><input name="ingredients" maxlength="90" placeholder="Arborio rice, mushrooms, parmesan"><small class="field-hint">Short list shown under the name on the public menu.</small></div><div class="form-row"><div class="field"><label>Price (${currencyOf().primary})</label><input name="price" type="number" step="0.1" value="950"></div><div class="field"><label>Category</label><select name="category">${state.categories.map(c=>`<option value="${c.id}" ${c.id===cat?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select></div></div><div class="field"><label>Photo preset</label><select name="image"><option value="assets/burrata-tomato.webp">Fresh plate</option><option value="assets/penne-arrabbiata.webp">Pasta</option><option value="assets/grilled-octopus.webp">Grill</option><option value="assets/tiramisu.webp">Dessert</option></select></div><button class="btn primary full" type="button" data-tour="sheet-primary" data-action="save-add-item">Add item</button></form>`); }
+function addItemSheet(){ const cat=ui.sheetData?.category||state.categories[0].id; return sheetShell('Add menu item','Photo, name, ingredients, price.',`<form id="add-item-form" class="form-grid"><div class="field"><label>Name</label><input name="name" required placeholder="e.g. Wild Mushroom Risotto"></div><div class="field"><label>Ingredients</label><input name="ingredients" maxlength="90" placeholder="Arborio rice, mushrooms, parmesan"><small class="field-hint">Short list shown under the name on the public menu.</small></div><div class="form-row"><div class="field"><label>Price (${currencyOf().primary})</label><input name="price" type="number" step="0.1" value="950"></div><div class="field"><label>Category</label><select name="category">${state.categories.map(c=>`<option value="${c.id}" ${c.id===cat?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select></div></div><div class="field"><label>Photo preset</label><select name="image"><option value="assets/burrata-tomato.webp">Fresh plate</option><option value="assets/penne-arrabbiata.webp">Pasta</option><option value="assets/grilled-octopus.webp">Grill</option><option value="assets/tiramisu.webp">Dessert</option></select></div>${dietaryFields(null)}<button class="btn primary full" type="button" data-tour="sheet-primary" data-action="save-add-item">Add item</button></form>`); }
 function addCategorySheet(){ return sheetShell('Add category','Keep category names short and scannable.',`<form id="add-category-form" class="form-grid"><div class="field"><label>Category name</label><input name="name" required placeholder="e.g. Breakfast"></div><button class="btn primary full" type="button" data-action="save-add-category">Add category</button></form>`); }
 function promoteSheet(){
  const found=getItem(ui.sheetData?.id); if(!found) return ''; const item=found.item; const p=item.promotion||{};
@@ -837,6 +864,8 @@ function setupPublicObservers(){
  updateActive();
  if('IntersectionObserver' in window){
   const po=new IntersectionObserver(entries=>entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('promo-attention'); po.unobserve(e.target);} }),{root:scroller,rootMargin:'-28% 0px -35% 0px',threshold:.45}); document.querySelectorAll('.menu-product.is-promoted').forEach(p=>po.observe(p));
+  const iv=new IntersectionObserver(entries=>entries.forEach(e=>{ if(e.isIntersecting){ const id=e.target.dataset.itemId; iv.unobserve(e.target); if(id&&!seenItems.has(id)){ seenItems.add(id); track('item_view',{id}); } } }),{root:scroller,threshold:.5});
+  document.querySelectorAll('.menu-product').forEach(p=>iv.observe(p));
  }
  const search=document.getElementById('public-search-input'); search?.addEventListener('input',e=>{ui.menuSearch=e.target.value;filterPublicItems(e.target.value);updateActive();});
 }
@@ -919,7 +948,7 @@ app.addEventListener('click',e=>{
  const btn=e.target.closest('[data-action]'); if(!btn) return; const a=btn.dataset.action;
  const opensOverlay = ['language-sheet','info-sheet','role-sheet','open-add-item','open-add-category','edit-item','promote-item','restaurant-detail','open-sheet'].includes(a);
  if(opensOverlay) rememberFocus(btn);
- if(a==='switch-mode'){ state.mode=btn.dataset.mode; if(state.mode==='admin'){state.preview.promoSeen=true;} save(); ui.sheet=null; ui.modal=null; render(); return; }
+ if(a==='switch-mode'){ const next=btn.dataset.mode; if(next==='preview') startGuestSession('preview'); else endGuestSession(); state.mode=next; if(state.mode==='admin'){state.preview.promoSeen=true;} save(); ui.sheet=null; ui.modal=null; render(); return; }
  if(a==='theme-toggle'){ state.theme=state.theme==='dark'?'light':'dark'; state.appearance.mode=state.theme; save(); render(); return; }
  if(a==='set-theme'){ state.theme=btn.dataset.theme; state.appearance.mode=state.theme; save(); render(); return; }
  if(a==='admin-tab'){ state.role='restaurant'; state.adminTab=btn.dataset.tab; state.adminSubpage=null; ui.skeleton=true; save(); render(); setTimeout(()=>{ui.skeleton=false; render();},180); return; }
@@ -955,11 +984,11 @@ app.addEventListener('click',e=>{
  if(a==='role-sheet'){ ui.sheet='role'; render(); return; }
  if(a==='set-role'){ state.role=btn.dataset.role; state.mode='admin'; state.adminTab=state.role==='super'?'overview':'home'; state.adminSubpage=null; ui.sheet=null; save(); render(); return; }
  if(a==='close-sheet'){ ui.sheet=null; ui.sheetData=null; render(); return; }
- if(a==='select-language'){ state.preview.language=btn.dataset.lang; state.preview.languageConfirmed=true; ui.sheet=null; save(); render(); if(!state.preview.promoSeen&&getPromoted()){ setTimeout(()=>{ui.modal='special';state.preview.promoSeen=true;save();render();},1400);} return; }
+ if(a==='select-language'){ state.preview.language=btn.dataset.lang; state.preview.languageConfirmed=true; ui.sheet=null; track('language',{lang:btn.dataset.lang}); save(); render(); if(!state.preview.promoSeen&&getPromoted()){ setTimeout(()=>{ui.modal='special';state.preview.promoSeen=true;save();render();},1400);} return; }
  if(a==='close-modal'){ ui.modal=null; state.preview.promoSeen=true; save(); render(); return; }
- if(a==='view-special'){ const id=btn.dataset.id; ui.modal=null; render(); setTimeout(()=>document.querySelector(`[data-item-id="${CSS.escape(id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}),80); return; }
- if(a==='jump-category'){ setActiveCategory(btn.dataset.id); scrollToCategory(btn.dataset.id); return; }
- if(a==='scroll-item'){ document.querySelector(`[data-item-id="${CSS.escape(btn.dataset.id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+ if(a==='view-special'){ const id=btn.dataset.id; ui.modal=null; track('promo_tap',{id}); render(); setTimeout(()=>document.querySelector(`[data-item-id="${CSS.escape(id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}),80); return; }
+ if(a==='jump-category'){ setActiveCategory(btn.dataset.id); scrollToCategory(btn.dataset.id); track('category_jump',{id:btn.dataset.id}); return; }
+ if(a==='scroll-item'){ track('promo_tap',{id:btn.dataset.id}); document.querySelector(`[data-item-id="${CSS.escape(btn.dataset.id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}); return; }
  if(a==='reset-demo'){ showConfirm({title:'Reset all prototype changes?',body:'This restores the original Sofra demo and clears any edits you made.',label:'Reset demo',tone:'danger',run(){ localStorage.removeItem(STORAGE_KEY); state=defaultState(); ui={sheet:null,sheetData:null,modal:null,expandedCategory:'popular',menuSearch:'',superSearch:'',languageSearch:'',editingItem:null,adminSearch:'',menuFilter:'all',superFilter:'all',userFilter:'all',subId:null,userSearch:'',confirm:null,skeleton:false,lastFocus:null}; save(); toast('Demo restored'); render(); }}); return; }
  if(a==='replay-onboarding'||a==='tour-start'){ startTour(); return; }
  if(a==='new-customer'){ state.preview.languageConfirmed=false; state.preview.promoSeen=false; state.preview.strongDismissed=false; state.mode='preview'; ui.sheet=null;ui.modal=null;save();render();return; }
@@ -980,6 +1009,13 @@ app.addEventListener('click',e=>{
  if(a==='currency-sheet'){ ui.sheet='currency'; ui.sheetData={id:btn.dataset.id}; render(); return; }
  if(a==='share-menu'){ sharePreview(); return; }
  if(a==='insights-range'){ ui.insightsRange=btn.dataset.range; render(); return; }
+ if(a==='seed-analytics'){ seedAnalytics(); return; }
+ if(a==='clear-analytics'){ showConfirm({title:'Clear guest analytics?',body:'Every recorded visit and demo event is deleted. Reporting starts from empty.',label:'Clear analytics',tone:'danger',run(){ analyticsOf().events=[]; analyticsOf().seeded=false; save(); toast('Analytics cleared'); render(); }}); return; }
+ if(a==='diet-filter'){ ui.dietFilter=btn.dataset.diet; render(); return; }
+ if(a==='allergen-sheet'){ ui.sheet='allergens'; render(); return; }
+ if(a==='pick-translation-language'){ ui.transLang=btn.dataset.lang; render(); return; }
+ if(a==='toggle-menu-language'){ toggleMenuLanguage(btn.dataset.lang); return; }
+ if(a==='auto-translate'){ autoTranslate(btn.dataset.lang); return; }
  if(window.HapOps && HapOps.actions(a, btn, opsCtx())) return;
 });
 
@@ -988,28 +1024,50 @@ app.addEventListener('change',e=>{
  if(el.matches('[data-action="takeover-category"]')){ state.categoryTakeover.categoryId=el.value; save(); render(); return; }
  if(el.matches('[data-action="brand-custom"]')){ state.appearance.brand=el.value; save(); render(); return; }
  if(el.matches('[data-action="set-primary-currency"]')){ setPrimaryCurrency(el.value); return; }
+ if(el.matches('[data-action="pick-translation-language"]')){ ui.transLang=el.value; render(); return; }
  if(el.matches('[data-setting]')){ state.restaurant[el.dataset.setting]=el.value; save(); toast('Saved'); return; }
 });
 app.addEventListener('input',e=>{
  if(e.target.matches('[data-rate]')){ handleRateInput(e.target); return; }
+ if(e.target.matches('[data-tr-id]')){ handleTranslationInput(e.target); return; }
  if(e.target.id==='language-search'){ ui.languageSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('language-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
  if(e.target.id==='super-search'){ ui.superSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('super-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
  if(e.target.id==='user-search'){ ui.userSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('user-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
  if(e.target.id==='admin-search'){ ui.adminSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('admin-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
 });
+function readItemFields(form){
+ const fd=new FormData(form);
+ return {
+  name:String(fd.get('name')||'').trim(),
+  ingredients:String(fd.get('ingredients')||'').trim(),
+  price:Number(fd.get('price'))||0,
+  allergens:fd.getAll('allergens').map(String),
+  dietary:fd.getAll('dietary').map(String),
+  spice:Number(fd.get('spice'))||0,
+  category:String(fd.get('category')||''),
+  image:fd.get('image')
+ };
+}
 function saveEditItemForm(){
  const form=document.getElementById('edit-item-form'); if(!form) return;
- const fd=new FormData(form); const f=getItem(fd.get('id')); if(!f) return; const oldCat=f.category;
+ const id=new FormData(form).get('id'); const f=getItem(id); if(!f) return; const oldCat=f.category;
+ const v=readItemFields(form);
+ if(!v.name){ toast('A dish needs a name'); return; }
  const oldName=f.item.name, oldPrice=f.item.price;
- f.item.name=String(fd.get('name')||'').trim(); f.item.ingredients=String(fd.get('ingredients')||'').trim(); f.item.price=Number(fd.get('price'))||0;
- const newCat=state.categories.find(c=>c.id===fd.get('category')); if(newCat&&newCat!==oldCat){ oldCat.items=oldCat.items.filter(x=>x.id!==f.item.id); newCat.items.push(f.item); ui.expandedCategory=newCat.id; }
+ Object.assign(f.item,{name:v.name,ingredients:v.ingredients,price:v.price,allergens:v.allergens,dietary:v.dietary,spice:v.spice});
+ const newCat=state.categories.find(c=>c.id===v.category); if(newCat&&newCat!==oldCat){ oldCat.items=oldCat.items.filter(x=>x.id!==f.item.id); newCat.items.push(f.item); ui.expandedCategory=newCat.id; }
  if(oldPrice!==f.item.price) logActivity('Changed price','item',f.item.name,money(oldPrice),money(f.item.price));
  else logActivity('Updated item','item',f.item.name,oldName,f.item.name);
  save(); ui.sheet=null; toast('Item updated'); render();
 }
 function saveAddItemForm(){
- const form=document.getElementById('add-item-form'); if(!form) return; const fd=new FormData(form); const cat=state.categories.find(c=>c.id===fd.get('category'))||state.categories[0];
- const id='item-'+Date.now(), name=String(fd.get('name')||'').trim()||'Untitled item'; cat.items.push({id,name,ingredients:String(fd.get('ingredients')||'').trim(),price:Number(fd.get('price'))||0,image:fd.get('image'),status:'available',promotion:{active:false}}); logActivity('Added item','item',name);
+ const form=document.getElementById('add-item-form'); if(!form) return;
+ const v=readItemFields(form);
+ if(!v.name){ toast('A dish needs a name'); return; }
+ const cat=state.categories.find(c=>c.id===v.category)||state.categories[0];
+ const id='item-'+Date.now();
+ cat.items.push({id,name:v.name,ingredients:v.ingredients,price:v.price,image:v.image||'assets/burrata-tomato.webp',status:'available',allergens:v.allergens,dietary:v.dietary,spice:v.spice,i18n:{},promotion:{active:false}});
+ logActivity('Added item','item',v.name);
  save(); ui.sheet=null; ui.expandedCategory=cat.id; toast('Item added'); render();
 }
 function saveAddCategoryForm(){
@@ -1021,7 +1079,17 @@ function saveAddCategoryForm(){
 app.addEventListener('submit',e=>{ e.preventDefault(); if(e.target.id==='edit-item-form') saveEditItemForm(); if(e.target.id==='add-item-form') saveAddItemForm(); if(e.target.id==='add-category-form') saveAddCategoryForm(); });
 
 function moveItem(id,dir){ const f=getItem(id);if(!f)return;const arr=f.category.items;const idx=arr.findIndex(x=>x.id===id);const next=dir==='up'?idx-1:idx+1;if(next<0||next>=arr.length)return;[arr[idx],arr[next]]=[arr[next],arr[idx]];save();render(); }
-function deleteItem(id){ const found=getItem(id); showConfirm({title:'Delete this item?',body:'This removes it from the menu immediately.',label:'Delete item',tone:'danger',run(){ for(const c of state.categories)c.items=c.items.filter(i=>i.id!==id);if(found)logActivity('Deleted item','item',found.item.name);save();ui.sheet=null;toast('Item deleted');render(); }}); }
+function deleteItem(id){
+ const found=getItem(id); if(!found) return;
+ const cat=found.category, snapshot=found.item, idx=cat.items.findIndex(i=>i.id===id);
+ showConfirm({title:'Delete this item?',body:'This removes it from the menu immediately. You can undo it right after.',label:'Delete item',tone:'danger',run(){
+  cat.items=cat.items.filter(i=>i.id!==id);
+  logActivity('Deleted item','item',snapshot.name);
+  save(); ui.sheet=null;
+  toastUndo('Item deleted',()=>{ cat.items.splice(Math.max(0,idx),0,snapshot); logActivity('Restored item','item',snapshot.name); save(); toast('Delete undone'); render(); });
+  render();
+ }});
+}
 function savePromotion(id){ const f=getItem(id);if(!f)return;
  for(const c of state.categories)for(const i of c.items)if(i.id!==id&&i.promotion?.active)i.promotion.active=false;
  f.item.promotion={active:true,...ui.sheetData.temp};state.appearance.promotionStyle=ui.sheetData.temp.style;state.preview.promoSeen=false;logActivity('Published promotion','item',f.item.name,'off','active');save();ui.sheet=null;toast('Promotion is live in Preview');render(); }
