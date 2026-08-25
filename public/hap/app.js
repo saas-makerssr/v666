@@ -988,10 +988,12 @@ app.addEventListener('change',e=>{
  if(el.matches('[data-action="takeover-category"]')){ state.categoryTakeover.categoryId=el.value; save(); render(); return; }
  if(el.matches('[data-action="brand-custom"]')){ state.appearance.brand=el.value; save(); render(); return; }
  if(el.matches('[data-action="set-primary-currency"]')){ setPrimaryCurrency(el.value); return; }
+ if(el.matches('[data-action="pick-translation-language"]')){ ui.transLang=el.value; render(); return; }
  if(el.matches('[data-setting]')){ state.restaurant[el.dataset.setting]=el.value; save(); toast('Saved'); return; }
 });
 app.addEventListener('input',e=>{
  if(e.target.matches('[data-rate]')){ handleRateInput(e.target); return; }
+ if(e.target.matches('[data-tr-id]')){ handleTranslationInput(e.target); return; }
  if(e.target.id==='language-search'){ ui.languageSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('language-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
  if(e.target.id==='super-search'){ ui.superSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('super-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
  if(e.target.id==='user-search'){ ui.userSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('user-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
