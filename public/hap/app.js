@@ -997,19 +997,39 @@ app.addEventListener('input',e=>{
  if(e.target.id==='user-search'){ ui.userSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('user-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
  if(e.target.id==='admin-search'){ ui.adminSearch=e.target.value; const pos=e.target.selectionStart; render(); const n=document.getElementById('admin-search'); if(n){n.focus();n.setSelectionRange(pos,pos);} }
 });
+function readItemFields(form){
+ const fd=new FormData(form);
+ return {
+  name:String(fd.get('name')||'').trim(),
+  ingredients:String(fd.get('ingredients')||'').trim(),
+  price:Number(fd.get('price'))||0,
+  allergens:fd.getAll('allergens').map(String),
+  dietary:fd.getAll('dietary').map(String),
+  spice:Number(fd.get('spice'))||0,
+  category:String(fd.get('category')||''),
+  image:fd.get('image')
+ };
+}
 function saveEditItemForm(){
  const form=document.getElementById('edit-item-form'); if(!form) return;
- const fd=new FormData(form); const f=getItem(fd.get('id')); if(!f) return; const oldCat=f.category;
+ const id=new FormData(form).get('id'); const f=getItem(id); if(!f) return; const oldCat=f.category;
+ const v=readItemFields(form);
+ if(!v.name){ toast('A dish needs a name'); return; }
  const oldName=f.item.name, oldPrice=f.item.price;
- f.item.name=String(fd.get('name')||'').trim(); f.item.ingredients=String(fd.get('ingredients')||'').trim(); f.item.price=Number(fd.get('price'))||0;
- const newCat=state.categories.find(c=>c.id===fd.get('category')); if(newCat&&newCat!==oldCat){ oldCat.items=oldCat.items.filter(x=>x.id!==f.item.id); newCat.items.push(f.item); ui.expandedCategory=newCat.id; }
+ Object.assign(f.item,{name:v.name,ingredients:v.ingredients,price:v.price,allergens:v.allergens,dietary:v.dietary,spice:v.spice});
+ const newCat=state.categories.find(c=>c.id===v.category); if(newCat&&newCat!==oldCat){ oldCat.items=oldCat.items.filter(x=>x.id!==f.item.id); newCat.items.push(f.item); ui.expandedCategory=newCat.id; }
  if(oldPrice!==f.item.price) logActivity('Changed price','item',f.item.name,money(oldPrice),money(f.item.price));
  else logActivity('Updated item','item',f.item.name,oldName,f.item.name);
  save(); ui.sheet=null; toast('Item updated'); render();
 }
 function saveAddItemForm(){
- const form=document.getElementById('add-item-form'); if(!form) return; const fd=new FormData(form); const cat=state.categories.find(c=>c.id===fd.get('category'))||state.categories[0];
- const id='item-'+Date.now(), name=String(fd.get('name')||'').trim()||'Untitled item'; cat.items.push({id,name,ingredients:String(fd.get('ingredients')||'').trim(),price:Number(fd.get('price'))||0,image:fd.get('image'),status:'available',promotion:{active:false}}); logActivity('Added item','item',name);
+ const form=document.getElementById('add-item-form'); if(!form) return;
+ const v=readItemFields(form);
+ if(!v.name){ toast('A dish needs a name'); return; }
+ const cat=state.categories.find(c=>c.id===v.category)||state.categories[0];
+ const id='item-'+Date.now();
+ cat.items.push({id,name:v.name,ingredients:v.ingredients,price:v.price,image:v.image||'assets/burrata-tomato.webp',status:'available',allergens:v.allergens,dietary:v.dietary,spice:v.spice,i18n:{},promotion:{active:false}});
+ logActivity('Added item','item',v.name);
  save(); ui.sheet=null; ui.expandedCategory=cat.id; toast('Item added'); render();
 }
 function saveAddCategoryForm(){
