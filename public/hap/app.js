@@ -706,19 +706,34 @@ function renderPreview(){
    </div>
    <div class="restaurant-line"><div class="public-avatar">${r.avatar?`<img src="${escapeHtml(r.avatar)}" alt="">`:`<span class="avatar-placeholder">${icon('image',20)}</span>`}</div><div class="restaurant-copy"><h1>${escapeHtml(r.name)}</h1><div class="restaurant-meta"><span class="open-chip"><i></i>${escapeHtml(r.status)}</span>${hoursDisclosure()}</div></div></div>
    <label class="public-search">${icon('search',17)}<input id="public-search-input" value="${escapeHtml(ui.menuSearch)}" placeholder="Search the menu" autocomplete="off"><span class="lang-code lang-indicator" aria-label="Current language ${escapeHtml(state.preview.language)}">${escapeHtml(code)}</span></label></header>
-  ${p&&p.item.promotion.intensity==='strong'&&!state.preview.strongDismissed?`<button class="strong-promo-card reveal-item" data-action="scroll-item" data-id="${p.item.id}"><img src="${p.item.image}" alt=""><div><b>${escapeHtml(p.item.promotion.label)}</b><strong>${escapeHtml(p.item.name)}</strong><span>${escapeHtml(itemIngredients(p.item))}</span></div>${icon('chevron',18)}</button>`:''}
-  <div class="category-sticky" id="category-sticky"><nav class="category-strip" id="category-strip">${state.categories.map((c,idx)=>`<button class="category-chip ${idx===0?'active':''} ${state.categoryTakeover.active&&state.categoryTakeover.categoryId===c.id?'takeover':''}" data-action="jump-category" data-id="${c.id}">${escapeHtml(c.name)}</button>`).join('')}</nav></div>
-  <main class="menu-sections">${state.categories.map((c,ci)=>renderPublicCategory(c,ci)).join('')}</main>
- </div></div>`;
+   ${p&&p.item.promotion.intensity==='strong'&&!state.preview.strongDismissed?`<button class="strong-promo-card reveal-item" data-action="scroll-item" data-id="${p.item.id}"><img src="${p.item.image}" alt=""><div><b>${escapeHtml(p.item.promotion.label)}</b><strong>${escapeHtml(tItem(p.item).name)}</strong><span>${escapeHtml(tItem(p.item).ingredients)}</span></div>${icon('chevron',18)}</button>`:''}
+   <div class="diet-row">${DIET_FILTERS.map(([id,name])=>`<button class="filter-chip ${(ui.dietFilter||'all')===id?'active':''}" data-action="diet-filter" data-diet="${id}">${name}</button>`).join('')}<button class="filter-chip ghost" data-action="allergen-sheet">${icon('info',13)} Allergens</button></div>
+   <div class="category-sticky" id="category-sticky"><nav class="category-strip" id="category-strip">${visibleCategories().map((c,idx)=>`<button class="category-chip ${idx===0?'active':''} ${state.categoryTakeover.active&&state.categoryTakeover.categoryId===c.id?'takeover':''}" data-action="jump-category" data-id="${c.id}">${escapeHtml(tCategory(c))}</button>`).join('')}</nav></div>
+   <main class="menu-sections">${visibleCategories().length?visibleCategories().map((c,ci)=>renderPublicCategory(c,ci)).join(''):`<div class="card empty" style="margin:16px">No dishes match that filter.</div>`}</main>
+  </div></div>`;
 }
+function dietMatches(i){
+ const f=ui.dietFilter||'all';
+ if(f==='all') return true;
+ return itemDiets(i).includes(f);
+}
+function visibleItemsOf(c){ return c.items.filter(i=>i.status!=='hidden'&&(!state.hideSoldOut||i.status!=='soldout')&&dietMatches(i)); }
+function visibleCategories(){ return state.categories.filter(c=>visibleItemsOf(c).length); }
 
 function renderPublicCategory(c,ci){
- const visible=c.items.filter(i=>i.status!=='hidden');
- return `<section class="menu-category ${state.categoryTakeover.active&&state.categoryTakeover.categoryId===c.id?'takeover':''}" id="cat-${c.id}" data-category="${c.id}"><div class="menu-category-head"><h2>${escapeHtml(c.name)}</h2><span>${visible.length} ${visible.length===1?'item':'items'}</span></div><div class="product-list">${visible.map((i,ii)=>renderPublicItem(i,c,ci*4+ii)).join('')}</div></section>`;
+ const visible=visibleItemsOf(c);
+ return `<section class="menu-category ${state.categoryTakeover.active&&state.categoryTakeover.categoryId===c.id?'takeover':''}" id="cat-${c.id}" data-category="${c.id}"><div class="menu-category-head"><h2>${escapeHtml(tCategory(c))}</h2><span>${visible.length} ${visible.length===1?'item':'items'}</span></div><div class="product-list">${visible.map((i,ii)=>renderPublicItem(i,c,ci*4+ii)).join('')}</div></section>`;
+}
+function itemBadges(i){
+ const al=itemAllergens(i), di=itemDiets(i), sp=Number(i.spice)||0;
+ const diet=di.map(d=>`<span class="diet-tag">${escapeHtml((DIETS.find(x=>x[0]===d)||[,d])[1])}</span>`).join('');
+ const allerg=al.length?`<span class="allergen-bubbles">${al.map(code=>`<i title="${escapeHtml((ALLERGENS.find(x=>x[0]===code)||[,code])[1])}">${escapeHtml(code)}</i>`).join('')}</span>`:'';
+ const spice=sp>0?`<span class="spice-tag" aria-label="Spice level ${sp} of 3">${'🌶️'.repeat(sp)}</span>`:'';
+ return (diet||allerg||spice)?`<div class="product-badges">${diet}${spice}${allerg}</div>`:'';
 }
 function renderPublicItem(i,c,idx){
- const p=i.promotion||{}; const promoted=p.active; const ing=itemIngredients(i);
- return `<article class="menu-product reveal-item ${promoted?'is-promoted promo-'+(p.intensity||'subtle')+' promo-style-'+(p.style||state.appearance.promotionStyle):''} ${i.status==='hidden'?'hidden-item':''}" data-item-id="${i.id}" data-search="${escapeHtml((i.name+' '+ing+' '+c.name).toLowerCase())}" style="transition-delay:${Math.min(idx%5*35,140)}ms">${promoted?`<span class="promo-border-label">${escapeHtml(p.label||'Recommended')}</span>`:''}<img class="product-img" src="${i.image}" alt="${escapeHtml(i.name)}" loading="lazy"><div class="product-copy"><h3>${escapeHtml(i.name)}</h3>${ing?`<p>${escapeHtml(ing)}</p>`:''}</div><div class="product-price">${money(i.price)}${(()=>{const cv=conversionsFor(i.price);return cv.length?`<button class="fx-chip" data-action="currency-sheet" data-id="${i.id}" aria-label="Show approximate prices in other currencies">≈ ${escapeHtml(formatCurrency(cv[0].value,cv[0].code))}${icon('down',10)}</button>`:'';})()}</div>${i.status==='soldout'?`<div class="product-status">Sold out</div>`:''}</article>`;
+ const p=i.promotion||{}; const promoted=p.active; const tr=tItem(i); const ing=tr.ingredients;
+ return `<article class="menu-product reveal-item ${promoted?'is-promoted promo-'+(p.intensity||'subtle')+' promo-style-'+(p.style||state.appearance.promotionStyle):''} ${i.status==='hidden'?'hidden-item':''}" data-item-id="${i.id}" data-search="${escapeHtml((tr.name+' '+ing+' '+tCategory(c)).toLowerCase())}" style="transition-delay:${Math.min(idx%5*35,140)}ms">${promoted?`<span class="promo-border-label">${escapeHtml(p.label||'Recommended')}</span>`:''}<img class="product-img" src="${i.image}" alt="${escapeHtml(tr.name)}" loading="lazy"><div class="product-copy"><h3>${escapeHtml(tr.name)}</h3>${ing?`<p>${escapeHtml(ing)}</p>`:''}${itemBadges(i)}</div><div class="product-price">${money(i.price)}${(()=>{const cv=conversionsFor(i.price);return cv.length?`<button class="fx-chip" data-action="currency-sheet" data-id="${i.id}" aria-label="Show approximate prices in other currencies">≈ ${escapeHtml(formatCurrency(cv[0].value,cv[0].code))}${icon('down',10)}</button>`:'';})()}</div>${i.status==='soldout'?`<div class="product-status">Sold out</div>`:''}</article>`;
 }
 
 function renderSuperadmin(){
