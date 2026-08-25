@@ -837,6 +837,8 @@ function setupPublicObservers(){
  updateActive();
  if('IntersectionObserver' in window){
   const po=new IntersectionObserver(entries=>entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('promo-attention'); po.unobserve(e.target);} }),{root:scroller,rootMargin:'-28% 0px -35% 0px',threshold:.45}); document.querySelectorAll('.menu-product.is-promoted').forEach(p=>po.observe(p));
+  const iv=new IntersectionObserver(entries=>entries.forEach(e=>{ if(e.isIntersecting){ const id=e.target.dataset.itemId; iv.unobserve(e.target); if(id&&!seenItems.has(id)){ seenItems.add(id); track('item_view',{id}); } } }),{root:scroller,threshold:.5});
+  document.querySelectorAll('.menu-product').forEach(p=>iv.observe(p));
  }
  const search=document.getElementById('public-search-input'); search?.addEventListener('input',e=>{ui.menuSearch=e.target.value;filterPublicItems(e.target.value);updateActive();});
 }
