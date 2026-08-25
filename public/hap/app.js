@@ -1021,7 +1021,17 @@ function saveAddCategoryForm(){
 app.addEventListener('submit',e=>{ e.preventDefault(); if(e.target.id==='edit-item-form') saveEditItemForm(); if(e.target.id==='add-item-form') saveAddItemForm(); if(e.target.id==='add-category-form') saveAddCategoryForm(); });
 
 function moveItem(id,dir){ const f=getItem(id);if(!f)return;const arr=f.category.items;const idx=arr.findIndex(x=>x.id===id);const next=dir==='up'?idx-1:idx+1;if(next<0||next>=arr.length)return;[arr[idx],arr[next]]=[arr[next],arr[idx]];save();render(); }
-function deleteItem(id){ const found=getItem(id); showConfirm({title:'Delete this item?',body:'This removes it from the menu immediately.',label:'Delete item',tone:'danger',run(){ for(const c of state.categories)c.items=c.items.filter(i=>i.id!==id);if(found)logActivity('Deleted item','item',found.item.name);save();ui.sheet=null;toast('Item deleted');render(); }}); }
+function deleteItem(id){
+ const found=getItem(id); if(!found) return;
+ const cat=found.category, snapshot=found.item, idx=cat.items.findIndex(i=>i.id===id);
+ showConfirm({title:'Delete this item?',body:'This removes it from the menu immediately. You can undo it right after.',label:'Delete item',tone:'danger',run(){
+  cat.items=cat.items.filter(i=>i.id!==id);
+  logActivity('Deleted item','item',snapshot.name);
+  save(); ui.sheet=null;
+  toastUndo('Item deleted',()=>{ cat.items.splice(Math.max(0,idx),0,snapshot); logActivity('Restored item','item',snapshot.name); save(); toast('Delete undone'); render(); });
+  render();
+ }});
+}
 function savePromotion(id){ const f=getItem(id);if(!f)return;
  for(const c of state.categories)for(const i of c.items)if(i.id!==id&&i.promotion?.active)i.promotion.active=false;
  f.item.promotion={active:true,...ui.sheetData.temp};state.appearance.promotionStyle=ui.sheetData.temp.style;state.preview.promoSeen=false;logActivity('Published promotion','item',f.item.name,'off','active');save();ui.sheet=null;toast('Promotion is live in Preview');render(); }
