@@ -919,7 +919,7 @@ app.addEventListener('click',e=>{
  const btn=e.target.closest('[data-action]'); if(!btn) return; const a=btn.dataset.action;
  const opensOverlay = ['language-sheet','info-sheet','role-sheet','open-add-item','open-add-category','edit-item','promote-item','restaurant-detail','open-sheet'].includes(a);
  if(opensOverlay) rememberFocus(btn);
- if(a==='switch-mode'){ state.mode=btn.dataset.mode; if(state.mode==='admin'){state.preview.promoSeen=true;} save(); ui.sheet=null; ui.modal=null; render(); return; }
+ if(a==='switch-mode'){ const next=btn.dataset.mode; if(next==='preview') startGuestSession('preview'); else endGuestSession(); state.mode=next; if(state.mode==='admin'){state.preview.promoSeen=true;} save(); ui.sheet=null; ui.modal=null; render(); return; }
  if(a==='theme-toggle'){ state.theme=state.theme==='dark'?'light':'dark'; state.appearance.mode=state.theme; save(); render(); return; }
  if(a==='set-theme'){ state.theme=btn.dataset.theme; state.appearance.mode=state.theme; save(); render(); return; }
  if(a==='admin-tab'){ state.role='restaurant'; state.adminTab=btn.dataset.tab; state.adminSubpage=null; ui.skeleton=true; save(); render(); setTimeout(()=>{ui.skeleton=false; render();},180); return; }
