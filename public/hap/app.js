@@ -955,11 +955,11 @@ app.addEventListener('click',e=>{
  if(a==='role-sheet'){ ui.sheet='role'; render(); return; }
  if(a==='set-role'){ state.role=btn.dataset.role; state.mode='admin'; state.adminTab=state.role==='super'?'overview':'home'; state.adminSubpage=null; ui.sheet=null; save(); render(); return; }
  if(a==='close-sheet'){ ui.sheet=null; ui.sheetData=null; render(); return; }
- if(a==='select-language'){ state.preview.language=btn.dataset.lang; state.preview.languageConfirmed=true; ui.sheet=null; save(); render(); if(!state.preview.promoSeen&&getPromoted()){ setTimeout(()=>{ui.modal='special';state.preview.promoSeen=true;save();render();},1400);} return; }
+ if(a==='select-language'){ state.preview.language=btn.dataset.lang; state.preview.languageConfirmed=true; ui.sheet=null; track('language',{lang:btn.dataset.lang}); save(); render(); if(!state.preview.promoSeen&&getPromoted()){ setTimeout(()=>{ui.modal='special';state.preview.promoSeen=true;save();render();},1400);} return; }
  if(a==='close-modal'){ ui.modal=null; state.preview.promoSeen=true; save(); render(); return; }
- if(a==='view-special'){ const id=btn.dataset.id; ui.modal=null; render(); setTimeout(()=>document.querySelector(`[data-item-id="${CSS.escape(id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}),80); return; }
- if(a==='jump-category'){ setActiveCategory(btn.dataset.id); scrollToCategory(btn.dataset.id); return; }
- if(a==='scroll-item'){ document.querySelector(`[data-item-id="${CSS.escape(btn.dataset.id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+ if(a==='view-special'){ const id=btn.dataset.id; ui.modal=null; track('promo_tap',{id}); render(); setTimeout(()=>document.querySelector(`[data-item-id="${CSS.escape(id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}),80); return; }
+ if(a==='jump-category'){ setActiveCategory(btn.dataset.id); scrollToCategory(btn.dataset.id); track('category_jump',{id:btn.dataset.id}); return; }
+ if(a==='scroll-item'){ track('promo_tap',{id:btn.dataset.id}); document.querySelector(`[data-item-id="${CSS.escape(btn.dataset.id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}); return; }
  if(a==='reset-demo'){ showConfirm({title:'Reset all prototype changes?',body:'This restores the original Sofra demo and clears any edits you made.',label:'Reset demo',tone:'danger',run(){ localStorage.removeItem(STORAGE_KEY); state=defaultState(); ui={sheet:null,sheetData:null,modal:null,expandedCategory:'popular',menuSearch:'',superSearch:'',languageSearch:'',editingItem:null,adminSearch:'',menuFilter:'all',superFilter:'all',userFilter:'all',subId:null,userSearch:'',confirm:null,skeleton:false,lastFocus:null}; save(); toast('Demo restored'); render(); }}); return; }
  if(a==='replay-onboarding'||a==='tour-start'){ startTour(); return; }
  if(a==='new-customer'){ state.preview.languageConfirmed=false; state.preview.promoSeen=false; state.preview.strongDismissed=false; state.mode='preview'; ui.sheet=null;ui.modal=null;save();render();return; }
