@@ -980,6 +980,13 @@ app.addEventListener('click',e=>{
  if(a==='currency-sheet'){ ui.sheet='currency'; ui.sheetData={id:btn.dataset.id}; render(); return; }
  if(a==='share-menu'){ sharePreview(); return; }
  if(a==='insights-range'){ ui.insightsRange=btn.dataset.range; render(); return; }
+ if(a==='seed-analytics'){ seedAnalytics(); return; }
+ if(a==='clear-analytics'){ showConfirm({title:'Clear guest analytics?',body:'Every recorded visit and demo event is deleted. Reporting starts from empty.',label:'Clear analytics',tone:'danger',run(){ analyticsOf().events=[]; analyticsOf().seeded=false; save(); toast('Analytics cleared'); render(); }}); return; }
+ if(a==='diet-filter'){ ui.dietFilter=btn.dataset.diet; render(); return; }
+ if(a==='allergen-sheet'){ ui.sheet='allergens'; render(); return; }
+ if(a==='pick-translation-language'){ ui.transLang=btn.dataset.lang; render(); return; }
+ if(a==='toggle-menu-language'){ toggleMenuLanguage(btn.dataset.lang); return; }
+ if(a==='auto-translate'){ autoTranslate(btn.dataset.lang); return; }
  if(window.HapOps && HapOps.actions(a, btn, opsCtx())) return;
 });
 
